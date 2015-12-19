@@ -1,4 +1,0 @@
-name = Token Filter
-description = Allows token values to be used as filters
-core = 7.x
-dependencies[] = token
