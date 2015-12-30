@@ -99,8 +99,10 @@ class TokenFilter extends FilterBase implements ContainerFactoryPluginInterface 
     $build = [];
     $build[] = ['#markup' => $this->t('Global tokens are replaced with their values.')];
     if ($this->moduleHandler->moduleExists('token')) {
-      $build[] = ['#markup' => ' '];
-      $build[] = ['#theme' => 'token_tree_link'];
+      $build[] = [
+        '#prefix' => ' ',
+        '#theme' => 'token_tree_link',
+      ];
     }
     return $this->renderer->render($build);
   }
