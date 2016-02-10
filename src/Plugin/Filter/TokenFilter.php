@@ -23,9 +23,8 @@ use Symfony\Component\DependencyInjection\ContainerInterface;
  *
  * @Filter(
  *   id = "token_filter",
- *   title = @Translation("Replaces global and entity tokens with their
- *   values"), type =
- *   Drupal\filter\Plugin\FilterInterface::TYPE_TRANSFORM_IRREVERSIBLE,
+ *   title = @Translation("Replaces global and entity tokens with their values"),
+ *   type = Drupal\filter\Plugin\FilterInterface::TYPE_TRANSFORM_IRREVERSIBLE,
  *   settings = { }
  * )
  */
@@ -106,18 +105,10 @@ class TokenFilter extends FilterBase implements ContainerFactoryPluginInterface 
   public function process($text, $langcode) {
     $data = [];
 
-    // Attempt to figure out the current context based on the current backtrace.
-    $backtrace = debug_backtrace();
-    // Pop off this current function in the stack.
-    array_shift($backtrace);
-    foreach ($backtrace as $caller) {
-      if ($caller['function'] == 'render' && isset($caller['object']) && $caller['object'] instanceof ThemeManagerInterface && $caller['args'][0] == 'field' && isset($caller['args'][1]['#object']) && $caller['args'][1]['#object'] instanceof ContentEntityInterface) {
-        /** @var \Drupal\Core\Entity\ContentEntityInterface $entity */
-        $entity = $caller['args'][1]['#object'];
-        $token_type = $this->tokenEntityMapper->getTokenTypeForEntityType($entity->getEntityTypeId());
-        $data[$token_type] = $entity;
-        break;
-      }
+    $entity = drupal_static('token_filter_entity', NULL);
+    if (!is_null($entity) && $entity instanceof ContentEntityInterface) {
+      $token_type = $this->tokenEntityMapper->getTokenTypeForEntityType($entity->getEntityTypeId());
+      $data[$token_type] = $entity;
     }
 
     return new FilterProcessResult($this->token->replace($text, $data), [], ['langcode' => $langcode]);
