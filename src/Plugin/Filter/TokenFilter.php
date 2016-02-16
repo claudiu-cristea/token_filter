@@ -7,11 +7,11 @@
 
 namespace Drupal\token_filter\Plugin\Filter;
 
+use Drupal\Core\Config\Entity\ConfigEntityBundleBase;
 use Drupal\Core\Entity\ContentEntityInterface;
-use Drupal\Core\Extension\ModuleHandlerInterface;
 use Drupal\Core\Plugin\ContainerFactoryPluginInterface;
 use Drupal\Core\Render\RendererInterface;
-use Drupal\Core\Theme\ThemeManagerInterface;
+use Drupal\Core\Routing\RouteMatchInterface;
 use Drupal\Core\Utility\Token;
 use Drupal\filter\FilterProcessResult;
 use Drupal\filter\Plugin\FilterBase;
@@ -52,11 +52,11 @@ class TokenFilter extends FilterBase implements ContainerFactoryPluginInterface 
   protected $renderer;
 
   /**
-   * The module handler service.
+   * The route match service.
    *
-   * @var \Drupal\Core\Extension\ModuleHandlerInterface
+   * @var \Drupal\Core\Routing\RouteMatchInterface
    */
-  protected $moduleHandler;
+  protected $routeMatch;
 
   /**
    * Constructs a token filter plugin.
@@ -73,15 +73,15 @@ class TokenFilter extends FilterBase implements ContainerFactoryPluginInterface 
    *   The token entity mapper service.
    * @param \Drupal\Core\Render\RendererInterface $renderer
    *   The renderer service.
-   * @param \Drupal\Core\Extension\ModuleHandlerInterface $module_handler
-   *   The module handler service.
+   * @param \Drupal\Core\Routing\RouteMatchInterface $current_route_match
+   *   The route match service.
    */
-  public function __construct(array $configuration, $plugin_id, $plugin_definition, Token $token, TokenEntityMapperInterface $token_entity_mapper, RendererInterface $renderer, ModuleHandlerInterface $module_handler) {
+  public function __construct(array $configuration, $plugin_id, $plugin_definition, Token $token, TokenEntityMapperInterface $token_entity_mapper, RendererInterface $renderer, RouteMatchInterface $current_route_match) {
     parent::__construct($configuration, $plugin_id, $plugin_definition);
     $this->token = $token;
     $this->tokenEntityMapper = $token_entity_mapper;
     $this->renderer = $renderer;
-    $this->moduleHandler = $module_handler;
+    $this->routeMatch = $current_route_match;
   }
 
   /**
@@ -95,7 +95,7 @@ class TokenFilter extends FilterBase implements ContainerFactoryPluginInterface 
       $container->get('token'),
       $container->get('token.entity_mapper'),
       $container->get('renderer'),
-      $container->get('module_handler')
+      $container->get('current_route_match')
     );
   }
 
@@ -122,13 +122,17 @@ class TokenFilter extends FilterBase implements ContainerFactoryPluginInterface 
     $build[] = ['#markup' => $this->t('Global and entity tokens are replaced with their values.')];
 
     $token_types = [];
-    /** @var \Drupal\Core\Routing\RouteMatchInterface $match */
-    $route_match = \Drupal::routeMatch();
-    $parameters = $route_match->getParameters();
+    $parameters = $this->routeMatch->getParameters();
     foreach ($parameters as $parameter) {
+      $entity_type = NULL;
       if ($parameter instanceof ContentEntityInterface) {
-        /** @var \Drupal\Core\Entity\ContentEntityInterface $parameter */
-        $token_type = $this->tokenEntityMapper->getTokenTypeForEntityType($parameter->getEntityTypeId());
+        $entity_type = $parameter->getEntityTypeId();
+      }
+      elseif ($parameter instanceof ConfigEntityBundleBase) {
+        $entity_type = $parameter->getEntityType()->getBundleOf();
+      }
+      if (isset($entity_type)) {
+        $token_type = $this->tokenEntityMapper->getTokenTypeForEntityType($entity_type);
         $token_types[] = $token_type;
       }
     }
